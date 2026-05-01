@@ -16,8 +16,8 @@ A coordinator updates current resident information once a week
 (dietary restrictions, family count, age ranges). The app pulls 
 upcoming volunteer bookings automatically from Microsoft Bookings, 
 combines both data sources, and streams a personalized preparation 
-guide via Claude — including menu suggestions, a shopping list, 
-logistics, and guidance on connecting with families.
+guide via Claude (including menu suggestions, a shopping list, 
+logistics, and guidance on connecting with families).
 
 Built for the Orange County chapter, which uses Microsoft Bookings 
 for volunteer scheduling. The same architecture works for any RMH 
