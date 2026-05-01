@@ -7,8 +7,8 @@ need but spend time manually briefing every group.
 
 This tool closes that gap.
 
-
 [![Watch the demo](https://cdn.loom.com/sessions/thumbnails/d48d785fd08247daaa3c8e5ab81cdb16-with-play.gif)](https://www.loom.com/share/d48d785fd08247daaa3c8e5ab81cdb16)
+
 
 A coordinator updates current resident information once a week 
 (dietary restrictions, family count, age ranges). The app pulls 
