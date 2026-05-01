@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meals of Love Guide Generator — RMH Orange County</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo">
+    🏠 RMH Orange County
+    <span>Coordinator</span>
+  </div>
+  <div class="header-subtitle">Meals of Love · Happy Snacks · McBakers</div>
+</header>
+
+<main class="layout">
+
+  <!-- ── LEFT: Current Residents Panel ── -->
+  <aside>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">👨‍👩‍👧 Current Residents</span>
+        <span class="save-status" id="saveStatus">✓ Saved</span>
+      </div>
+      <div class="card-body">
+
+        <div class="privacy-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0110 0v4"></path>
+          </svg>
+          This information personalizes volunteer guides. It is only sent to Claude to generate guides and is never stored externally or shared.
+        </div>
+
+        <form id="residentForm">
+          <div class="form-group">
+            <label for="numFamilies">Families staying</label>
+            <input type="number" id="numFamilies" name="num_families" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label for="totalPeople">Total people <span class="hint">(adults + kids)</span></label>
+            <input type="number" id="totalPeople" name="total_people" min="0" value="0" />
+          </div>
+
+          <div class="number-row">
+            <div class="form-group">
+              <label for="familiesJoining">Join dinner <span class="hint">(est.)</span></label>
+              <input type="number" id="familiesJoining" name="families_joining_dinner" min="0" value="0" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="childrenBreakdown">
+              Children breakdown
+              <span class="hint"> — ages &amp; counts</span>
+            </label>
+            <textarea id="childrenBreakdown" name="children_breakdown" rows="2"
+              placeholder="e.g. 2 toddlers, 3 school-age (5–9), 1 teenager"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="dietaryRestrictions">
+              Dietary restrictions &amp; allergies
+              <span class="hint"> — anonymized</span>
+            </label>
+            <textarea id="dietaryRestrictions" name="dietary_restrictions" rows="3"
+              placeholder="e.g. One child has a severe nut allergy. Two adults are vegetarian. One family is halal."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="culturalPreferences">Cultural food preferences <span class="hint">— optional</span></label>
+            <textarea id="culturalPreferences" name="cultural_preferences" rows="2"
+              placeholder="e.g. One family appreciates Asian rice-based dishes."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="volunteerNotes">Notes for volunteers this week</label>
+            <textarea id="volunteerNotes" name="volunteer_notes" rows="3"
+              placeholder="e.g. Families are having a hard week — extra warmth appreciated. Toddlers love watching the cooking."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="saveBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Save Residents
+          </button>
+
+          <div class="last-updated" id="lastUpdated"></div>
+        </form>
+
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── RIGHT: Upcoming Bookings Panel ── -->
+  <section>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📅 Upcoming Bookings <span id="bookingCount" style="font-weight:400;color:#6b7280;font-size:0.8rem;"></span> <span id="demoBadge" class="demo-badge" style="display:none">Demo</span></span>
+        <button class="refresh-btn" id="refreshBtn" onclick="loadBookings()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Refresh
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="bookingsList" class="bookings-list">
+          <div class="loading-state">Loading upcoming bookings…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+function formatDate(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  } catch { return isoStr; }
+}
+
+function formatTime(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+  } catch { return ''; }
+}
+
+function serviceBadgeClass(type) {
+  if (type === 'Meal of Love') return 'badge-meal';
+  if (type === 'Happy Snacks') return 'badge-snacks';
+  if (type === 'McBakers')    return 'badge-bakers';
+  return 'badge-meal';
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Simple Markdown → HTML (just enough for the guide) ────────────────────
+
+function renderMarkdown(md) {
+  let html = md
+    // Escape HTML first
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Headings
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+    // HR
+    .replace(/^---$/gm, '<hr>')
+    // Bold + italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Lists
+  html = html.replace(/^(\s*)([-*+]) (.+)$/gm, (_, indent, bullet, content) => {
+    return `<li>${content}</li>`;
+  });
+  html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+  // Wrap consecutive <li> in <ul>
+  html = html.replace(/(<li>.*<\/li>\n?)+/gs, match => `<ul>${match}</ul>`);
+
+  // Paragraphs — wrap blocks not already wrapped in tags
+  const lines = html.split('\n');
+  const result = [];
+  let inBlock = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inBlock) { result.push('</p>'); inBlock = false; }
+      continue;
+    }
+    if (/^<(h[1-6]|ul|ol|li|hr|div|p|blockquote)/.test(trimmed)) {
+      if (inBlock) { result.push('</p>'); inBlock = false; }
+      result.push(trimmed);
+    } else {
+      if (!inBlock) { result.push('<p>'); inBlock = true; }
+      result.push(trimmed);
+    }
+  }
+  if (inBlock) result.push('</p>');
+
+  // Highlight allergy/nut-free callouts
+  return result.join('\n')
+    .replace(/<strong>(⚠.*?)<\/strong>/g,
+      '<div class="allergy-callout">$1</div>');
+}
+
+// ── Residents Form ─────────────────────────────────────────────────────────
+
+async function loadResidents() {
+  try {
+    const res = await fetch('/api/residents');
+    const data = await res.json();
+    document.getElementById('numFamilies').value = data.num_families || 0;
+    document.getElementById('totalPeople').value = data.total_people || 0;
+    document.getElementById('familiesJoining').value = data.families_joining_dinner || 0;
+    document.getElementById('childrenBreakdown').value = data.children_breakdown || '';
+    document.getElementById('dietaryRestrictions').value = data.dietary_restrictions || '';
+    document.getElementById('culturalPreferences').value = data.cultural_preferences || '';
+    document.getElementById('volunteerNotes').value = data.volunteer_notes || '';
+
+    if (data.last_updated) {
+      const d = new Date(data.last_updated);
+      document.getElementById('lastUpdated').textContent =
+        `Last updated: ${d.toLocaleDateString('en-US', { month:'short', day:'numeric' })} at ${d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })}`;
+    }
+  } catch (err) {
+    console.error('Failed to load residents:', err);
+  }
+}
+
+document.getElementById('residentForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const payload = {
+    num_families: parseInt(document.getElementById('numFamilies').value) || 0,
+    total_people: parseInt(document.getElementById('totalPeople').value) || 0,
+    families_joining_dinner: parseInt(document.getElementById('familiesJoining').value) || 0,
+    children_breakdown: document.getElementById('childrenBreakdown').value,
+    dietary_restrictions: document.getElementById('dietaryRestrictions').value,
+    cultural_preferences: document.getElementById('culturalPreferences').value,
+    volunteer_notes: document.getElementById('volunteerNotes').value,
+  };
+
+  try {
+    const res = await fetch('/api/residents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    const status = document.getElementById('saveStatus');
+    status.classList.add('visible');
+    setTimeout(() => status.classList.remove('visible'), 2500);
+
+    if (data.last_updated) {
+      const d = new Date(data.last_updated);
+      document.getElementById('lastUpdated').textContent =
+        `Last updated: ${d.toLocaleDateString('en-US', { month:'short', day:'numeric' })} at ${d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })}`;
+    }
+  } catch (err) {
+    alert('Failed to save. Is the server running?');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Save Residents`;
+  }
+});
+
+// ── Bookings ───────────────────────────────────────────────────────────────
+
+let isDemoMode = false;
+
+function buildBookingCard(appt) {
+  const badgeClass = serviceBadgeClass(appt.service_type);
+  const tags = [];
+  if (appt.first_time) tags.push(`<span class="tag tag-first">⭐ First visit</span>`);
+  if (appt.volunteer_dietary) tags.push(`<span class="tag tag-dietary"><span class="tag-label">Dietary</span>${esc(appt.volunteer_dietary)}</span>`);
+  if (appt.group_notes) tags.push(`<span class="tag tag-notes"><span class="tag-label">Notes</span>${esc(appt.group_notes)}</span>`);
+
+  return `
+<div class="booking-card" id="card-${esc(appt.id)}">
+  <div class="booking-card-header">
+    <span class="service-badge ${badgeClass}">${esc(appt.service_type)}</span>
+    <span class="booking-group">${esc(appt.group_name)}</span>
+  </div>
+  <div class="booking-meta">
+    <span>📅 ${esc(appt.start_display)}</span>
+    <span>👥 ${appt.num_volunteers ? appt.num_volunteers + ' volunteers' : 'Volunteers TBD'}</span>
+    <span>⏱ ${appt.duration_hours}h</span>
+  </div>
+  ${tags.length ? `<div class="booking-tags">${tags.join('')}</div>` : ''}
+  <div class="booking-actions">
+    <button class="btn btn-generate" onclick="generateGuide('${esc(appt.id)}')" id="genBtn-${esc(appt.id)}">
+      ✨ Generate Guide
+    </button>
+    <span id="genStatus-${esc(appt.id)}" class="generating-indicator" style="display:none">
+      Generating
+      <div class="dot-flashing"><span></span><span></span><span></span></div>
+    </span>
+  </div>
+  <div id="guide-${esc(appt.id)}"></div>
+</div>`;
+}
+
+async function loadBookings() {
+  const list = document.getElementById('bookingsList');
+  const refreshBtn = document.getElementById('refreshBtn');
+  list.innerHTML = '<div class="loading-state">Loading upcoming bookings…</div>';
+  refreshBtn.disabled = true;
+
+  try {
+    const res = await fetch('/api/bookings');
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const appointments = data.appointments || [];
+
+    // Detect demo mode: all IDs start with "mock-"
+    isDemoMode = appointments.every(a => a.id.startsWith('mock-'));
+    document.getElementById('demoBadge').style.display = isDemoMode ? 'inline' : 'none';
+
+    document.getElementById('bookingCount').textContent =
+      appointments.length ? `(${appointments.length} in next 14 days)` : '';
+
+    if (!appointments.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <h3>No upcoming bookings</h3>
+          <p>No bookings found in the next 14 days.</p>
+        </div>`;
+      return;
+    }
+
+    appointments.forEach(a => { bookingEmailMap[a.id] = a.customer_email || ''; });
+    list.innerHTML = appointments.map(buildBookingCard).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="error-state"><strong>Error loading bookings:</strong> ${esc(err.message)}</div>`;
+  } finally {
+    refreshBtn.disabled = false;
+  }
+}
+
+// ── Guide Generation ───────────────────────────────────────────────────────
+
+async function generateGuide(bookingId) {
+  const guideEl = document.getElementById(`guide-${bookingId}`);
+  const genBtn  = document.getElementById(`genBtn-${bookingId}`);
+  const genStat = document.getElementById(`genStatus-${bookingId}`);
+
+  genBtn.disabled = true;
+  genStat.style.display = 'flex';
+  guideEl.innerHTML = '';
+
+  // Render the guide container with toolbar
+  guideEl.innerHTML = `
+    <div class="guide-container">
+      <div class="guide-toolbar">
+        <span class="guide-toolbar-title" onclick="toggleGuide('${bookingId}')" style="cursor:pointer">
+          <span id="guideChevron-${bookingId}">▾</span> 📋 Volunteer Preparation Guide
+        </span>
+        <button class="btn btn-copy" id="copyBtn-${bookingId}" onclick="copyGuide('${bookingId}')" disabled>Copy</button>
+        <button class="btn btn-download" id="dlBtn-${bookingId}" onclick="downloadGuide('${bookingId}')" disabled>Download</button>
+        <button class="btn btn-send" id="sendBtn-${bookingId}" onclick="toggleEmailForm('${bookingId}')" disabled>✉ Send</button>
+        <button class="btn btn-collapse" onclick="toggleGuide('${bookingId}')" id="collapseBtn-${bookingId}">Collapse</button>
+      </div>
+      <div id="guideBody-${bookingId}">
+        <div class="guide-content guide-rendered" id="guideContent-${bookingId}"></div>
+        <div class="email-form" id="emailForm-${bookingId}" style="display:none"></div>
+      </div>
+    </div>`;
+
+  const contentEl = document.getElementById(`guideContent-${bookingId}`);
+  let rawText = '';
+
+  try {
+    const res = await fetch(`/api/generate-guide/${encodeURIComponent(bookingId)}`, {
+      method: 'POST',
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      contentEl.innerHTML = `<div class="error-state"><strong>Error:</strong> ${esc(errText)}</div>`;
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    // Cursor element for streaming effect
+    const cursor = document.createElement('span');
+    cursor.className = 'streaming-cursor';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === 'chunk') {
+            rawText += event.content;
+            contentEl.innerHTML = renderMarkdown(rawText);
+            contentEl.appendChild(cursor);
+            contentEl.scrollTop = contentEl.scrollHeight;
+          } else if (event.type === 'done') {
+            cursor.remove();
+            contentEl.innerHTML = renderMarkdown(rawText);
+            contentEl.scrollTop = 0;
+            // Enable action buttons
+            document.getElementById(`copyBtn-${bookingId}`).disabled = false;
+            document.getElementById(`dlBtn-${bookingId}`).disabled = false;
+            document.getElementById(`sendBtn-${bookingId}`).disabled = false;
+            // Store raw text for copy/download/send
+            contentEl.dataset.raw = rawText;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    contentEl.innerHTML = `<div class="error-state"><strong>Connection error:</strong> ${esc(err.message)}</div>`;
+  } finally {
+    genBtn.disabled = false;
+    genBtn.textContent = '↺ Regenerate';
+    genStat.style.display = 'none';
+  }
+}
+
+function copyGuide(bookingId) {
+  const contentEl = document.getElementById(`guideContent-${bookingId}`);
+  const raw = contentEl.dataset.raw || contentEl.innerText;
+  navigator.clipboard.writeText(raw).then(() => {
+    const btn = document.getElementById(`copyBtn-${bookingId}`);
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  }).catch(() => {
+    alert('Copy failed — please select the text manually.');
+  });
+}
+
+function downloadGuide(bookingId) {
+  const contentEl = document.getElementById(`guideContent-${bookingId}`);
+  const raw = contentEl.dataset.raw || contentEl.innerText;
+  const card = document.getElementById(`card-${bookingId}`);
+  const groupName = card.querySelector('.booking-group')?.textContent || 'Guide';
+  const filename = `RMH-Guide-${groupName.replace(/[^a-z0-9]+/gi, '-')}.txt`;
+
+  const blob = new Blob([raw], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Collapse/Expand Guide ─────────────────────────────────────────────────
+
+function toggleGuide(bookingId) {
+  const body    = document.getElementById(`guideBody-${bookingId}`);
+  const chevron = document.getElementById(`guideChevron-${bookingId}`);
+  const btn     = document.getElementById(`collapseBtn-${bookingId}`);
+  const collapsed = body.style.display === 'none';
+  body.style.display   = collapsed ? 'block' : 'none';
+  chevron.textContent  = collapsed ? '▾' : '▸';
+  btn.textContent      = collapsed ? 'Collapse' : 'Expand';
+}
+
+// ── Email ──────────────────────────────────────────────────────────────────
+
+// bookingEmailMap populated when bookings load
+const bookingEmailMap = {};
+
+function toggleEmailForm(bookingId) {
+  const formEl = document.getElementById(`emailForm-${bookingId}`);
+  if (formEl.style.display !== 'none') {
+    formEl.style.display = 'none';
+    return;
+  }
+
+  const toEmail = bookingEmailMap[bookingId] || '';
+  const card = document.getElementById(`card-${bookingId}`);
+  const groupName = card.querySelector('.booking-group')?.textContent || 'Volunteer Group';
+  const dateMeta = card.querySelector('.booking-meta span')?.textContent?.replace('📅 ', '') || '';
+  const subject = `Your Preparation Guide — ${groupName} · ${dateMeta}`;
+
+  formEl.innerHTML = `
+    <div class="email-form-inner">
+      <div class="email-form-row">
+        <label for="emailTo-${bookingId}">To</label>
+        <input type="email" id="emailTo-${bookingId}" value="${esc(toEmail)}"
+               placeholder="volunteer-group@example.com" />
+      </div>
+      <div class="email-form-row">
+        <label for="emailSubject-${bookingId}">Subject</label>
+        <input type="text" id="emailSubject-${bookingId}" value="${esc(subject)}" />
+      </div>
+      <div class="email-form-actions">
+        <button class="btn btn-send-submit" id="sendSubmit-${bookingId}"
+                onclick="sendGuide('${bookingId}')">
+          ✉ Send Guide
+        </button>
+        <span id="sendStatus-${bookingId}" class="send-status"></span>
+      </div>
+    </div>`;
+
+  formEl.style.display = 'block';
+}
+
+async function sendGuide(bookingId) {
+  const toEmail   = document.getElementById(`emailTo-${bookingId}`).value.trim();
+  const subject   = document.getElementById(`emailSubject-${bookingId}`).value.trim();
+  const contentEl = document.getElementById(`guideContent-${bookingId}`);
+  const guideText = contentEl.dataset.raw || '';
+  const card      = document.getElementById(`card-${bookingId}`);
+  const groupName = card.querySelector('.booking-group')?.textContent || '';
+  const statusEl  = document.getElementById(`sendStatus-${bookingId}`);
+  const submitBtn = document.getElementById(`sendSubmit-${bookingId}`);
+
+  if (!toEmail) { statusEl.textContent = 'Please enter an email address.'; statusEl.className = 'send-status error'; return; }
+  if (!guideText) { statusEl.textContent = 'Generate the guide first.'; statusEl.className = 'send-status error'; return; }
+
+  submitBtn.disabled = true;
+  statusEl.textContent = 'Sending…';
+  statusEl.className = 'send-status sending';
+
+  try {
+    const res = await fetch('/api/send-guide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to_email: toEmail, subject, guide_text: guideText, group_name: groupName }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Unknown error');
+    }
+
+    statusEl.textContent = `✓ Sent to ${toEmail}`;
+    statusEl.className = 'send-status success';
+    submitBtn.textContent = '✓ Sent';
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+    statusEl.className = 'send-status error';
+    submitBtn.disabled = false;
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+loadResidents();
+loadBookings();
+</script>
+
+</body>
+</html>
+─────────────────────────────────────────────────────────
+
+loadResidents();
+loadBookings();
+</script>
+
+</body>
+</html>
