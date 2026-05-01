@@ -20,7 +20,7 @@ chapter.
 
 ---
 
-**Services supported**
+**Services supported (mapped to current OC chapter services)**
 | Service | Duration | Guide includes |
 |---------|----------|----------------|
 | Meal of Love | 4 hrs | Menu, shopping list, logistics, family connection tips |
