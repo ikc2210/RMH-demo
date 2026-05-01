@@ -1,3 +1,4 @@
+<img width="1440" height="791" alt="Screenshot 2026-05-01 at 3 18 05 AM" src="https://github.com/user-attachments/assets/75547711-f190-4ee3-9876-3c7c3c2fd7b7" />
 # Meals of Love Guide Generator
 ### Ronald McDonald House Orange County
 
@@ -26,6 +27,8 @@ chapter.
 | Meal of Love | 4 hrs | Menu, shopping list, logistics, family connection tips |
 | Happy Snacks | 2 hrs | Nut-free snack ideas, individual packaging, quick logistics |
 | McBakers | 2 hrs | Allergy-aware baked goods, hospital-friendly packaging |
+
+(Based on OC chapter services): https://bookings.cloud.microsoft/book/SU-Bookings-RMHMealsofLoveDemo@bookings.stanford.edu/?ismsaljsauthenabled
 
 **Stack:** Python · FastAPI · Microsoft Graph API · 
 Claude API (claude-sonnet-4-20250514) · Vanilla HTML/CSS/JS
