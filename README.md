@@ -6,6 +6,7 @@ to prepare before they shop. Coordinators know what families
 need but spend time manually briefing every group.
 
 This tool closes that gap.
+<img width="940" alt="Screenshot 2026-05-01 at 3 17 53 AM" src="https://github.com/user-attachments/assets/e4e2f1e4-8fad-4693-87ac-64cec1969b7b" />
 
 [![Watch the demo](https://cdn.loom.com/sessions/thumbnails/d48d785fd08247daaa3c8e5ab81cdb16)](https://www.loom.com/share/d48d785fd08247daaa3c8e5ab81cdb16)
 
