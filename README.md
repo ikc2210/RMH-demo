@@ -1,4 +1,3 @@
-<img width="1440" height="791" alt="Screenshot 2026-05-01 at 3 18 05 AM" src="https://github.com/user-attachments/assets/75547711-f190-4ee3-9876-3c7c3c2fd7b7" />
 # Meals of Love Guide Generator
 ### Ronald McDonald House Orange County
 
@@ -7,6 +6,11 @@ to prepare before they shop. Coordinators know what families
 need but spend time manually briefing every group.
 
 This tool closes that gap.
+
+
+<img width="1000" alt="Screenshot 2026-05-01 at 3 18 05 AM" src="https://github.com/user-attachments/assets/75547711-f190-4ee3-9876-3c7c3c2fd7b7" />
+
+
 
 A coordinator updates current resident information once a week 
 (dietary restrictions, family count, age ranges). The app pulls 
